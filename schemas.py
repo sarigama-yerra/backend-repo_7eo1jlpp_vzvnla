@@ -1,48 +1,51 @@
 """
-Database Schemas
+Database Schemas for Life Insurance Comparison App
 
-Define your MongoDB collection schemas here using Pydantic models.
-These schemas are used for data validation in your application.
-
-Each Pydantic model represents a collection in your database.
-Model name is converted to lowercase for the collection name:
-- User -> "user" collection
-- Product -> "product" collection
-- BlogPost -> "blogs" collection
+Each Pydantic model represents a collection in MongoDB. The collection name
+is the lowercase of the class name.
 """
 
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, List, Literal
 
-# Example schemas (replace with your own):
 
-class User(BaseModel):
-    """
-    Users collection schema
-    Collection name: "user" (lowercase of class name)
-    """
-    name: str = Field(..., description="Full name")
-    email: str = Field(..., description="Email address")
-    address: str = Field(..., description="Address")
-    age: Optional[int] = Field(None, ge=0, le=120, description="Age in years")
-    is_active: bool = Field(True, description="Whether user is active")
+class Insurer(BaseModel):
+    """Insurer/company profile"""
+    name: str = Field(..., description="Insurer display name")
+    logo_url: Optional[str] = Field(None, description="Public logo URL")
+    rating: Optional[float] = Field(4.5, ge=0, le=5, description="Consumer rating 0-5")
+    tagline: Optional[str] = Field(None, description="Short marketing tagline")
 
-class Product(BaseModel):
-    """
-    Products collection schema
-    Collection name: "product" (lowercase of class name)
-    """
-    title: str = Field(..., description="Product title")
-    description: Optional[str] = Field(None, description="Product description")
-    price: float = Field(..., ge=0, description="Price in dollars")
-    category: str = Field(..., description="Product category")
-    in_stock: bool = Field(True, description="Whether product is in stock")
 
-# Add your own schemas here:
-# --------------------------------------------------
+class Plan(BaseModel):
+    """Individual plan offered by an insurer"""
+    insurer_id: str = Field(..., description="Reference to insurer _id as string")
+    name: str = Field(..., description="Plan name")
+    coverage_amount: int = Field(..., ge=10000, description="Base coverage amount in USD")
+    term_years: int = Field(..., ge=5, le=40, description="Term length in years")
+    smoker_multiplier: float = Field(1.5, ge=1.0, le=3.0, description="Multiplier for smokers")
+    male_factor: float = Field(1.0, ge=0.8, le=1.5, description="Factor applied for males")
+    age_band: List[int] = Field([25, 35, 45, 55], description="Boundary ages for rate bands")
+    base_rates: List[float] = Field(..., description="Monthly base rate per $100k for each age band")
+    features: List[str] = Field(default_factory=list, description="Bulleted features")
 
-# Note: The Flames database viewer will automatically:
-# 1. Read these schemas from GET /schema endpoint
-# 2. Use them for document validation when creating/editing
-# 3. Handle all database operations (CRUD) directly
-# 4. You don't need to create any database endpoints!
+
+class QuoteRequest(BaseModel):
+    """User-submitted request used for quoting and stored for analytics"""
+    first_name: Optional[str] = None
+    age: int = Field(..., ge=18, le=70)
+    gender: Literal["male", "female", "other"] = "male"
+    smoker: bool = Field(False)
+    coverage_amount: int = Field(..., ge=50000, le=2000000)
+    term_years: int = Field(..., ge=5, le=40)
+
+
+class Quote(BaseModel):
+    """Persisted quote result snapshot"""
+    request_id: str
+    insurer_name: str
+    plan_name: str
+    monthly_premium: float
+    coverage_amount: int
+    term_years: int
+    features: List[str] = []
